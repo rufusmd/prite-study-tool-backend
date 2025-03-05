@@ -81,23 +81,3 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
 });
-
-
-// Create a .env file with the following content:
-
-// .env
-// Database connection
-MONGODB_URI = mongodb + srv://your-username:your-password@your-cluster.mongodb.net/prite-study-tool
-
-// Security
-JWT_SECRET = create - a - secure - random - string -for-jwt - signing
-
-// API Keys
-CLAUDE_API_KEY = your - anthropic - claude - api - key - here
-
-// Environment
-NODE_ENV = production
-PORT = 3000
-
-// Frontend URL (for CORS)
-FRONTEND_URL = https://prite-study-tool.vercel.app
