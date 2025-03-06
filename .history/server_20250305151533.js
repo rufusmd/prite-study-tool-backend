@@ -23,7 +23,7 @@ app.use(compression()); // Compress responses
 // Configure CORS for production
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? process.env.FRONTEND_URL.split(',')
+        ? [process.env.FRONTEND_URL, 'https://prite-study-tool.vercel.app']
         : 'http://localhost:5173',
     credentials: true
 }));
@@ -52,7 +52,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/api/parser', require('./routes/parser'));
-// app.use('/api/users', require('./routes/users'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/claude', require('./routes/claude'));
 app.use('/api/users/prite-scores', require('./routes/priteScores'));
 
@@ -81,3 +81,23 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
 });
+
+
+// Create a .env file with the following content:
+
+// .env
+// Database connection
+MONGODB_URI = mongodb + srv://your-username:your-password@your-cluster.mongodb.net/prite-study-tool
+
+// Security
+JWT_SECRET = create - a - secure - random - string -for-jwt - signing
+
+// API Keys
+CLAUDE_API_KEY = your - anthropic - claude - api - key - here
+
+// Environment
+NODE_ENV = production
+PORT = 3000
+
+// Frontend URL (for CORS)
+FRONTEND_URL = https://prite-study-tool.vercel.app

@@ -23,7 +23,7 @@ app.use(compression()); // Compress responses
 // Configure CORS for production
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? process.env.FRONTEND_URL.split(',')
+        ? [process.env.FRONTEND_URL, 'https://prite-study-tool.vercel.app']
         : 'http://localhost:5173',
     credentials: true
 }));
@@ -52,7 +52,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/api/parser', require('./routes/parser'));
-// app.use('/api/users', require('./routes/users'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/claude', require('./routes/claude'));
 app.use('/api/users/prite-scores', require('./routes/priteScores'));
 

@@ -23,7 +23,7 @@ app.use(compression()); // Compress responses
 // Configure CORS for production
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? process.env.FRONTEND_URL.split(',')
+        ? [process.env.FRONTEND_URL, 'https://prite-study-tool.vercel.app']
         : 'http://localhost:5173',
     credentials: true
 }));
