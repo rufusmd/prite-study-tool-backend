@@ -1,3 +1,18 @@
-node_modules
+# Environment files
 .env
-.DS_Store.history/
+.env.*
+.env.local
+.env.development
+.env.production
+
+# Editor history
+.history
+.history/
+
+# Node modules
+node_modules
+
+# Logs
+logs/
+*.log
+npm-debug.log*
