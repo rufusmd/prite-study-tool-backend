@@ -1,13 +1,11 @@
-# Environment files
-.env
-.env.*
-.env.local
-.env.development
-.env.production
-
-# Editor history
-.history
+# history and .env files
 .history/
+.history
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Node modules
 node_modules
