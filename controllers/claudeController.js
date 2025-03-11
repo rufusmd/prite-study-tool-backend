@@ -141,7 +141,7 @@ Be authoritative, accurate, and educational in your explanation, similar to UWor
 
         // Call Claude API with higher token limit for explanations
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: "claude-3-sonnet-20240229",
+            model: "claude-3-7-sonnet-20250219",
             max_tokens: 6000, // Higher token limit for detailed explanations
             messages: [
                 {
