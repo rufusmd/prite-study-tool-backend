@@ -52,7 +52,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/api/parser', require('./routes/parser'));
-app.use('/api/users', require('./routes/users'));
+// app.use('/api/users', require('./routes/users'));
 app.use('/api/claude', require('./routes/claude'));
 app.use('/api/users/prite-scores', require('./routes/priteScores'));
 app.use('/api/explanation', require('./routes/explanation')); // Add new explanation routes
