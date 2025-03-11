@@ -159,6 +159,16 @@ exports.deleteQuestion = async (req, res) => {
             return res.status(404).json({ message: 'Question not found' });
         }
 
+        // Check if question exists
+        if (!question) {
+            return res.status(404).json({ message: 'Question not found' });
+        }
+
+        // Update fields (including explanation)
+        if (req.body.explanation) {
+            question.explanation = req.body.explanation;
+        }
+
         // Check if user owns the question
         if (question.creator.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Not authorized to delete this question' });
