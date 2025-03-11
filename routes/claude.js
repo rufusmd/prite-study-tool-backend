@@ -13,8 +13,4 @@ router.get('/test', (req, res) => {
 // Main processing endpoint
 router.post('/', claudeController.processText);
 
-router.post('/process-text', claudeController.processText);
-
-router.post('/explanation', claudeController.explanationLimiter, claudeController.generateExplanation);
-
 module.exports = router;
