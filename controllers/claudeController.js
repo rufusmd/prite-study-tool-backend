@@ -1,4 +1,3 @@
-// controllers/claudeController.js
 const axios = require('axios');
 
 exports.processText = async (req, res) => {
@@ -35,7 +34,7 @@ ${text}`;
         console.log('Sending request to Claude API');
 
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: "claude-3-sonnet-20240229",
+            model: "claude-3-7-sonnet-20250219", // Updated model name
             max_tokens: 4000,
             messages: [
                 {
