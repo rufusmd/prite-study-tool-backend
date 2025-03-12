@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const Question = require('../models/Question');
 
 // Apply auth middleware to all routes
 router.use(auth);
@@ -79,6 +80,55 @@ ${formattedQuestion}`;
             success: false,
             error: 'Failed to generate explanation',
             details: error.response?.data?.error?.message || error.message
+        });
+    }
+});
+
+router.post('/save', auth, async (req, res) => {
+    try {
+        const { questionId, explanation } = req.body;
+
+        if (!questionId || !explanation) {
+            return res.status(400).json({
+                success: false,
+                error: 'Question ID and explanation are required'
+            });
+        }
+
+        // Find the question
+        const question = await Question.findById(questionId);
+
+        // Check if question exists
+        if (!question) {
+            return res.status(404).json({
+                success: false,
+                error: 'Question not found'
+            });
+        }
+
+        // Check if user has permission (creator or public questions)
+        if (!question.isPublic && question.creator.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized to update this question'
+            });
+        }
+
+        // Update the question with the generated explanation
+        question.generatedExplanation = explanation;
+        await question.save();
+
+        res.json({
+            success: true,
+            message: 'Explanation saved successfully',
+            question
+        });
+    } catch (error) {
+        console.error('Error saving explanation:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to save explanation',
+            details: error.message
         });
     }
 });

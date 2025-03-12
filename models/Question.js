@@ -51,6 +51,10 @@ const QuestionSchema = new mongoose.Schema({
     explanation: {
         type: String
     },
+    generatedExplanation: {
+        type: String,
+        default: ''
+    },
     part: {
         type: String,
         enum: ['1', '2'],
