@@ -74,7 +74,9 @@ exports.createQuestion = async (req, res) => {
             part,
             category,
             isPublic,
-            tags
+            tags,
+            year,
+            number
         } = req.body;
 
         // Create new question
@@ -86,8 +88,10 @@ exports.createQuestion = async (req, res) => {
             explanation,
             part,
             category,
-            isPublic,
-            tags,
+            isPublic: isPublic || false,
+            tags: tags || [],
+            year: year || new Date().getFullYear().toString(),
+            number: number || "",
             // Initialize study data for creator
             studyData: [{
                 user: req.user.id,
@@ -127,18 +131,22 @@ exports.updateQuestion = async (req, res) => {
             part,
             category,
             isPublic,
-            tags
+            tags,
+            year,
+            number
         } = req.body;
 
         // Update question fields
-        if (text) question.text = text;
-        if (options) question.options = options;
-        if (correctAnswer) question.correctAnswer = correctAnswer;
-        if (explanation) question.explanation = explanation;
-        if (part) question.part = part;
-        if (category) question.category = category;
+        if (text !== undefined) question.text = text;
+        if (options !== undefined) question.options = options;
+        if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
+        if (explanation !== undefined) question.explanation = explanation;
+        if (part !== undefined) question.part = part;
+        if (category !== undefined) question.category = category;
         if (isPublic !== undefined) question.isPublic = isPublic;
-        if (tags) question.tags = tags;
+        if (tags !== undefined) question.tags = tags;
+        if (year !== undefined) question.year = year;
+        if (number !== undefined) question.number = number;
 
         // Save updated question
         const updatedQuestion = await question.save();
@@ -159,16 +167,6 @@ exports.deleteQuestion = async (req, res) => {
             return res.status(404).json({ message: 'Question not found' });
         }
 
-        // Check if question exists
-        if (!question) {
-            return res.status(404).json({ message: 'Question not found' });
-        }
-
-        // Update fields (including explanation)
-        if (req.body.explanation) {
-            question.explanation = req.body.explanation;
-        }
-
         // Check if user owns the question
         if (question.creator.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Not authorized to delete this question' });
@@ -182,7 +180,7 @@ exports.deleteQuestion = async (req, res) => {
     }
 };
 
-// In controllers/questionController.js, update the createBulkQuestions method
+// Create bulk questions
 exports.createBulkQuestions = async (req, res) => {
     try {
         const { questions } = req.body;
@@ -203,10 +201,11 @@ exports.createBulkQuestions = async (req, res) => {
                 D: q.options?.D || "",
                 E: q.options?.E || ""
             },
-            correctAnswer: q.correctAnswer || "",  // Ensure this is at least an empty string
+            correctAnswer: q.correctAnswer || "",
             explanation: q.explanation || "",
             category: q.category || "",
             isPublic: q.isPublic || false,
+            year: q.year || new Date().getFullYear().toString(),
             tags: q.tags || [],
             creator: req.user.id,
             studyData: [{
@@ -306,16 +305,34 @@ exports.searchQuestions = async (req, res) => {
         const { text, part, category, visibility } = req.query;
 
         // Build query
-        const query = {
-            $or: [
+        let query = {};
+
+        // Filter by ownership/visibility
+        if (visibility === 'mine') {
+            query.creator = req.user.id;
+        } else if (visibility === 'public') {
+            query.isPublic = true;
+        } else {
+            // Default: show user's questions and public questions
+            query.$or = [
                 { creator: req.user.id },
                 { isPublic: true }
-            ]
-        };
+            ];
+        }
 
         // Add filters if provided
         if (text) {
-            query.$text = { $search: text };
+            // Add text search if MongoDB text index is set up
+            // Otherwise, use a simple case-insensitive regex search
+            query.$or = [
+                { text: { $regex: text, $options: 'i' } },
+                { 'options.A': { $regex: text, $options: 'i' } },
+                { 'options.B': { $regex: text, $options: 'i' } },
+                { 'options.C': { $regex: text, $options: 'i' } },
+                { 'options.D': { $regex: text, $options: 'i' } },
+                { 'options.E': { $regex: text, $options: 'i' } },
+                { explanation: { $regex: text, $options: 'i' } }
+            ];
         }
 
         if (part) {
@@ -324,13 +341,6 @@ exports.searchQuestions = async (req, res) => {
 
         if (category) {
             query.category = category;
-        }
-
-        // Filter by visibility if specified
-        if (visibility === 'mine') {
-            query.$or = [{ creator: req.user.id }];
-        } else if (visibility === 'public') {
-            query.$or = [{ isPublic: true }];
         }
 
         const questions = await Question.find(query).sort({ createdAt: -1 });

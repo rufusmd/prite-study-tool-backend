@@ -1,5 +1,29 @@
+// models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+
+const SettingsSchema = new mongoose.Schema({
+    shareUsageData: {
+        type: Boolean,
+        default: false
+    },
+    publicProfile: {
+        type: Boolean,
+        default: false
+    },
+    notificationsEnabled: {
+        type: Boolean,
+        default: true
+    },
+    questionsPerSession: {
+        type: Number,
+        default: 20
+    },
+    showExplanations: {
+        type: Boolean,
+        default: true
+    }
+});
 
 const UserSchema = new mongoose.Schema({
     username: {
@@ -18,11 +42,45 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    displayName: {
+        type: String,
+        trim: true
+    },
+    pgyLevel: {
+        type: String,
+        enum: ['1', '2', '3', '4', '5', '6+', 'Fellow', 'Attending', 'Other', '']
+    },
+    specialty: {
+        type: String,
+        default: 'Psychiatry'
+    },
+    institution: {
+        type: String
+    },
+    isAdmin: {
+        type: Boolean,
+        default: false
+    },
     createdAt: {
         type: Date,
         default: Date.now
     },
-    // Add other user-related fields here
+    lastLogin: {
+        type: Date,
+        default: Date.now
+    },
+    onboardingStep: {
+        type: Number,
+        default: 0
+    },
+    onboardingComplete: {
+        type: Boolean,
+        default: false
+    },
+    settings: {
+        type: SettingsSchema,
+        default: () => ({})
+    }
 });
 
 // Hash password before saving
