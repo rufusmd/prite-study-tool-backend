@@ -62,6 +62,9 @@ if (parseBtn) {
         try {
             parsedQuestions = await api.parseQuestions(ocrText, part);
 
+            // Post-process to detect special question types
+            processSpecialQuestionTypes(parsedQuestions);
+
             // Show results
             parsedCount.textContent = parsedQuestions.length;
             displayParsedQuestions();
@@ -119,6 +122,70 @@ if (cancelParsedBtn) {
     });
 }
 
+// Process special question types
+function processSpecialQuestionTypes(questions) {
+    // Process each question to detect special types
+    questions.forEach(question => {
+        // Check for Four Options type (A-D only)
+        const hasOptionA = !!question.options.A;
+        const hasOptionB = !!question.options.B;
+        const hasOptionC = !!question.options.C;
+        const hasOptionD = !!question.options.D;
+        const hasOptionE = !!question.options.E;
+
+        // Four options questions have A-D but no E
+        if (hasOptionA && hasOptionB && hasOptionC && hasOptionD && !hasOptionE) {
+            question.questionType = 'fourOptions';
+        }
+
+        // Check for Multiple Correct type
+        const questionTextLower = question.text.toLowerCase();
+        const hasMultipleCorrectKeywords = (
+            questionTextLower.includes('choose three') ||
+            questionTextLower.includes('select three') ||
+            questionTextLower.includes('choose 3') ||
+            questionTextLower.includes('select 3') ||
+            questionTextLower.includes('three of the following') ||
+            questionTextLower.includes('3 of the following') ||
+            questionTextLower.includes('all of the following except') ||
+            questionTextLower.includes('each of the following except')
+        );
+
+        // Check for extra options (F, G, H, etc.)
+        const extraOptions = Object.entries(question.options)
+            .filter(([key, value]) =>
+                key > 'E' && value && value.trim().length > 0);
+
+        if (hasMultipleCorrectKeywords || extraOptions.length > 0) {
+            question.questionType = 'multipleCorrect';
+
+            // Add default instructions based on the text
+            if (questionTextLower.includes('choose three') ||
+                questionTextLower.includes('select three') ||
+                questionTextLower.includes('choose 3') ||
+                questionTextLower.includes('select 3')) {
+                question.instructions = 'Select the THREE correct answers.';
+                question.numCorrectAnswers = 3;
+            } else if (questionTextLower.includes('all of the following except') ||
+                questionTextLower.includes('each of the following except')) {
+                question.instructions = 'Select the answer that is NOT correct.';
+                question.numCorrectAnswers = 1;
+            }
+
+            // Initialize correctAnswers array
+            question.correctAnswers = [];
+            if (question.correctAnswer) {
+                question.correctAnswers.push(question.correctAnswer);
+                question.correctAnswer = '';
+            }
+        } else {
+            question.questionType = question.questionType || 'standard';
+        }
+    });
+
+    return questions;
+}
+
 // Display parsed questions preview
 function displayParsedQuestions() {
     parsedQuestionsPreview.innerHTML = '';
@@ -135,22 +202,46 @@ function displayParsedQuestions() {
         const questionDiv = document.createElement('div');
         questionDiv.className = 'preview-item';
 
+        // Display question type badge
+        let questionTypeBadge = '';
+        if (question.questionType === 'fourOptions') {
+            questionTypeBadge = '<span class="badge bg-info">Four Options</span>';
+        } else if (question.questionType === 'multipleCorrect') {
+            questionTypeBadge = '<span class="badge bg-warning">Multiple Correct</span>';
+        }
+
         questionDiv.innerHTML = `
       <div class="preview-item-header">
         <span><strong>Question ${question.number}</strong></span>
-        <span>Part ${question.part}</span>
+        <span>Part ${question.part} ${questionTypeBadge}</span>
       </div>
-      <div class="preview-item-text">${question.text}</div>
-      <div class="preview-item-options">
-        ${Object.entries(question.options)
-                .filter(([_, text]) => text)
-                .map(([letter, text]) => `
-            <div class="option-text">
-              ${letter}: ${text}
-            </div>
-          `).join('')}
-      </div>
-    `;
+      <div class="preview-item-text">${question.text}</div>`;
+
+        // Add instructions if present
+        if (question.instructions) {
+            questionDiv.innerHTML += `
+            <div class="preview-item-instructions">
+                <em>${question.instructions}</em>
+            </div>`;
+        }
+
+        // Add options
+        let optionsHtml = '<div class="preview-item-options">';
+
+        // Get all options that have content
+        const optionEntries = Object.entries(question.options)
+            .filter(([_, text]) => text);
+
+        optionEntries.forEach(([letter, text]) => {
+            optionsHtml += `
+                <div class="option-text">
+                  ${letter}: ${text}
+                </div>
+            `;
+        });
+
+        optionsHtml += '</div>';
+        questionDiv.innerHTML += optionsHtml;
 
         parsedQuestionsPreview.appendChild(questionDiv);
     });
@@ -168,7 +259,7 @@ async function loadQuestionsForAnswerKey() {
     try {
         // Load all questions that don't have a correct answer yet
         const allQuestions = await api.getQuestions();
-        questionsForAnswerKey = allQuestions.filter(q => !q.correctAnswer);
+        questionsForAnswerKey = allQuestions.filter(q => !q.correctAnswer && q.questionType !== 'multipleCorrect');
 
         displayQuestionsForAnswerKey();
     } catch (error) {
@@ -235,10 +326,17 @@ function displayQuestionsForAnswerKey() {
 function addQuestionCheckbox(question) {
     const checkboxItem = document.createElement('div');
     checkboxItem.className = 'checkbox-list-item';
+
+    // Add badge for question type
+    let typeBadge = '';
+    if (question.questionType === 'fourOptions') {
+        typeBadge = '<span class="badge bg-info">4-Opt</span> ';
+    }
+
     checkboxItem.innerHTML = `
     <input type="checkbox" class="question-checkbox" data-id="${question._id}" id="q-${question._id}" />
     <label for="q-${question._id}">
-      Question ${question.number}: ${question.text.substring(0, 50)}...
+      ${typeBadge}Question ${question.number}: ${question.text.substring(0, 50)}...
     </label>
   `;
     questionsToUpdate.appendChild(checkboxItem);
@@ -267,6 +365,11 @@ if (processAnswersBtn) {
         try {
             const result = await api.parseAnswers(answerKeyText, part, questionIds);
 
+            // Special handling for multiple-correct answers
+            if (result.multipleCorrectAnswers && Object.keys(result.multipleCorrectAnswers).length > 0) {
+                await handleMultipleCorrectAnswers(result.multipleCorrectAnswers);
+            }
+
             // Show results
             updatedCount.textContent = result.updated;
             displayUpdatedQuestions(result.questions);
@@ -284,6 +387,16 @@ if (processAnswersBtn) {
             console.error('Error processing answer key:', error);
         }
     });
+}
+
+// Process multiple-correct answers (needs additional UI)
+async function handleMultipleCorrectAnswers(multipleCorrectAnswers) {
+    // Implementation will depend on how you want to handle multiple-correct answers
+    // This could be a modal dialog where the user selects multiple correct answers
+    console.log('Multiple correct answers detected:', multipleCorrectAnswers);
+
+    // For now, just display a message
+    showAlert(`${Object.keys(multipleCorrectAnswers).length} multiple-choice questions detected. Please edit these questions manually to set the correct answers.`, 'info');
 }
 
 // Clear answer key form
@@ -307,25 +420,76 @@ function displayUpdatedQuestions(questions) {
         const questionDiv = document.createElement('div');
         questionDiv.className = 'preview-item';
 
+        // Display question type badge
+        let questionTypeBadge = '';
+        if (question.questionType === 'fourOptions') {
+            questionTypeBadge = '<span class="badge bg-info">Four Options</span>';
+        } else if (question.questionType === 'multipleCorrect') {
+            questionTypeBadge = '<span class="badge bg-warning">Multiple Correct</span>';
+        }
+
         questionDiv.innerHTML = `
       <div class="preview-item-header">
         <span><strong>Question ${question.number}</strong></span>
-        <span>Part ${question.part}</span>
+        <span>Part ${question.part} ${questionTypeBadge}</span>
       </div>
-      <div class="preview-item-text">${question.text}</div>
-      <div class="preview-item-options">
-        ${Object.entries(question.options)
+      <div class="preview-item-text">${question.text}</div>`;
+
+        // Add instructions if present
+        if (question.instructions) {
+            questionDiv.innerHTML += `
+            <div class="preview-item-instructions">
+                <em>${question.instructions}</em>
+            </div>`;
+        }
+
+        // Add options with highlight for correct answer(s)
+        let optionsHtml = '<div class="preview-item-options">';
+
+        // Handle different question types
+        if (question.questionType === 'multipleCorrect') {
+            // For multiple correct questions, highlight multiple answers
+            const correctAnswers = question.correctAnswers || [];
+            Object.entries(question.options)
                 .filter(([_, text]) => text)
-                .map(([letter, text]) => `
-            <div class="option-text ${letter === question.correctAnswer ? 'correct' : ''}">
-              ${letter}: ${text}
-            </div>
-          `).join('')}
-      </div>
-      <div class="preview-item-answer">
-        <strong>Correct Answer:</strong> ${question.correctAnswer}
-      </div>
-    `;
+                .forEach(([letter, text]) => {
+                    const isCorrect = correctAnswers.includes(letter);
+                    optionsHtml += `
+                        <div class="option-text ${isCorrect ? 'correct' : ''}">
+                          ${letter}: ${text}
+                        </div>
+                    `;
+                });
+        } else {
+            // For standard and fourOptions questions
+            Object.entries(question.options)
+                .filter(([_, text]) => text)
+                .forEach(([letter, text]) => {
+                    optionsHtml += `
+                        <div class="option-text ${letter === question.correctAnswer ? 'correct' : ''}">
+                          ${letter}: ${text}
+                        </div>
+                    `;
+                });
+        }
+
+        optionsHtml += '</div>';
+        questionDiv.innerHTML += optionsHtml;
+
+        // Display correct answer information
+        if (question.questionType === 'multipleCorrect') {
+            questionDiv.innerHTML += `
+                <div class="preview-item-answer">
+                    <strong>Correct Answers:</strong> ${(question.correctAnswers || []).join(', ')}
+                </div>
+            `;
+        } else {
+            questionDiv.innerHTML += `
+                <div class="preview-item-answer">
+                    <strong>Correct Answer:</strong> ${question.correctAnswer}
+                </div>
+            `;
+        }
 
         updatedQuestionsPreview.appendChild(questionDiv);
     });

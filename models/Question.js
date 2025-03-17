@@ -41,12 +41,28 @@ const QuestionSchema = new mongoose.Schema({
         B: { type: String, required: true },
         C: { type: String },
         D: { type: String },
-        E: { type: String }
+        E: { type: String },
+        F: { type: String },
+        G: { type: String },
+        H: { type: String },
+        I: { type: String },
+        J: { type: String },
+        K: { type: String },
+        L: { type: String },
+        M: { type: String },
+        N: { type: String },
+        O: { type: String }
     },
+    // For standard questions with a single correct answer
     correctAnswer: {
         type: String,
-        enum: ['A', 'B', 'C', 'D', 'E', ''],  // Allow empty string
-        default: ''  // Set default as empty string
+        enum: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', ''],
+        default: ''
+    },
+    // For questions with multiple correct answers
+    correctAnswers: {
+        type: [String],
+        default: []
     },
     explanation: {
         type: String
@@ -67,6 +83,22 @@ const QuestionSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // New field for question type
+    questionType: {
+        type: String,
+        enum: ['standard', 'fourOptions', 'multipleCorrect'],
+        default: 'standard'
+    },
+    // For instructions specific to this question type
+    instructions: {
+        type: String,
+        default: ''
+    },
+    // Number of correct answers expected (for multipleCorrect type)
+    numCorrectAnswers: {
+        type: Number,
+        default: 1
+    },
     tags: [String],
     studyData: [StudyDataSchema],
     createdAt: {
@@ -76,6 +108,12 @@ const QuestionSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
+    },
+    number: {
+        type: String
+    },
+    year: {
+        type: String
     }
 });
 

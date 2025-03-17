@@ -70,35 +70,54 @@ exports.createQuestion = async (req, res) => {
             text,
             options,
             correctAnswer,
+            correctAnswers,
             explanation,
             part,
             category,
             isPublic,
             tags,
             year,
-            number
+            number,
+            questionType,
+            instructions,
+            numCorrectAnswers
         } = req.body;
 
-        // Create new question
-        const newQuestion = new Question({
+        // Create new question based on question type
+        const questionData = {
             creator: req.user.id,
             text,
             options,
-            correctAnswer,
-            explanation,
             part,
             category,
             isPublic: isPublic || false,
             tags: tags || [],
             year: year || new Date().getFullYear().toString(),
             number: number || "",
+            questionType: questionType || "standard",
+            instructions: instructions || "",
             // Initialize study data for creator
             studyData: [{
                 user: req.user.id,
                 nextReviewDate: new Date()
             }]
-        });
+        };
 
+        // Handle different question types
+        if (questionType === 'multipleCorrect') {
+            questionData.correctAnswers = correctAnswers || [];
+            questionData.numCorrectAnswers = numCorrectAnswers || 3;
+        } else {
+            // Standard and fourOptions questions
+            questionData.correctAnswer = correctAnswer || '';
+        }
+
+        // Add explanation if provided
+        if (explanation) {
+            questionData.explanation = explanation;
+        }
+
+        const newQuestion = new Question(questionData);
         const question = await newQuestion.save();
         res.status(201).json(question);
     } catch (error) {
@@ -127,26 +146,48 @@ exports.updateQuestion = async (req, res) => {
             text,
             options,
             correctAnswer,
+            correctAnswers,
             explanation,
             part,
             category,
             isPublic,
             tags,
             year,
-            number
+            number,
+            questionType,
+            instructions,
+            numCorrectAnswers
         } = req.body;
 
         // Update question fields
         if (text !== undefined) question.text = text;
         if (options !== undefined) question.options = options;
-        if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
-        if (explanation !== undefined) question.explanation = explanation;
         if (part !== undefined) question.part = part;
         if (category !== undefined) question.category = category;
         if (isPublic !== undefined) question.isPublic = isPublic;
         if (tags !== undefined) question.tags = tags;
         if (year !== undefined) question.year = year;
         if (number !== undefined) question.number = number;
+        if (explanation !== undefined) question.explanation = explanation;
+        if (questionType !== undefined) question.questionType = questionType;
+        if (instructions !== undefined) question.instructions = instructions;
+
+        // Handle different question types
+        if (questionType === 'multipleCorrect') {
+            if (correctAnswers !== undefined) question.correctAnswers = correctAnswers;
+            if (numCorrectAnswers !== undefined) question.numCorrectAnswers = numCorrectAnswers;
+            // Clear single correct answer if switching to multiple correct
+            if (question.questionType !== 'multipleCorrect') {
+                question.correctAnswer = '';
+            }
+        } else {
+            // Standard and fourOptions questions
+            if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
+            // Clear multiple correct answers if switching from multiple correct
+            if (question.questionType === 'multipleCorrect') {
+                question.correctAnswers = [];
+            }
+        }
 
         // Save updated question
         const updatedQuestion = await question.save();
@@ -172,7 +213,7 @@ exports.deleteQuestion = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to delete this question' });
         }
 
-        await question.remove();
+        await Question.deleteOne({ _id: question._id });
         res.json({ message: 'Question removed' });
     } catch (error) {
         console.error(error);
@@ -190,29 +231,74 @@ exports.createBulkQuestions = async (req, res) => {
         }
 
         // Add creator to each question and ensure all required fields exist
-        const questionsWithCreator = questions.map(q => ({
-            number: q.number || "",
-            part: q.part || "1",
-            text: q.text || "",
-            options: {
-                A: q.options?.A || "",
-                B: q.options?.B || "",
-                C: q.options?.C || "",
-                D: q.options?.D || "",
-                E: q.options?.E || ""
-            },
-            correctAnswer: q.correctAnswer || "",
-            explanation: q.explanation || "",
-            category: q.category || "",
-            isPublic: q.isPublic || false,
-            year: q.year || new Date().getFullYear().toString(),
-            tags: q.tags || [],
-            creator: req.user.id,
-            studyData: [{
-                user: req.user.id,
-                nextReviewDate: new Date()
-            }]
-        }));
+        const questionsWithCreator = questions.map(q => {
+            // Determine question type based on properties or explicit type
+            let questionType = q.questionType || 'standard';
+            if (!questionType || questionType === 'standard') {
+                // If options are limited to 4, set type to fourOptions
+                const optionLetters = Object.keys(q.options || {}).filter(k => q.options[k]);
+                if (optionLetters.length === 4 && !q.options.E) {
+                    questionType = 'fourOptions';
+                }
+
+                // If correctAnswers array exists, set type to multipleCorrect
+                if (q.correctAnswers && Array.isArray(q.correctAnswers) && q.correctAnswers.length > 1) {
+                    questionType = 'multipleCorrect';
+                }
+            }
+
+            const baseQuestion = {
+                number: q.number || "",
+                part: q.part || "1",
+                text: q.text || "",
+                options: {
+                    A: q.options?.A || "",
+                    B: q.options?.B || "",
+                    C: q.options?.C || "",
+                    D: q.options?.D || "",
+                    E: q.options?.E || "",
+                    F: q.options?.F || "",
+                    G: q.options?.G || "",
+                    H: q.options?.H || "",
+                    I: q.options?.I || "",
+                    J: q.options?.J || "",
+                    K: q.options?.K || "",
+                    L: q.options?.L || "",
+                    M: q.options?.M || "",
+                    N: q.options?.N || "",
+                    O: q.options?.O || ""
+                },
+                explanation: q.explanation || "",
+                category: q.category || "",
+                isPublic: q.isPublic || false,
+                year: q.year || new Date().getFullYear().toString(),
+                tags: q.tags || [],
+                creator: req.user.id,
+                questionType,
+                instructions: q.instructions || "",
+                studyData: [{
+                    user: req.user.id,
+                    nextReviewDate: new Date()
+                }]
+            };
+
+            // Add type-specific fields
+            if (questionType === 'multipleCorrect') {
+                baseQuestion.correctAnswers = q.correctAnswers || [];
+                baseQuestion.numCorrectAnswers = q.numCorrectAnswers ||
+                    (q.correctAnswers ? q.correctAnswers.length : 3);
+
+                // Set default instructions if not provided
+                if (!q.instructions) {
+                    baseQuestion.instructions = `Select the ${baseQuestion.numCorrectAnswers} correct answers.`;
+                }
+            } else {
+                // Standard and fourOptions types
+                baseQuestion.correctAnswer = q.correctAnswer || "";
+            }
+
+            return baseQuestion;
+        });
 
         // Insert all questions
         const result = await Question.insertMany(questionsWithCreator);
@@ -302,7 +388,7 @@ exports.updateStudyData = async (req, res) => {
 // Search questions
 exports.searchQuestions = async (req, res) => {
     try {
-        const { text, part, category, visibility } = req.query;
+        const { text, part, category, visibility, questionType } = req.query;
 
         // Build query
         let query = {};
@@ -341,6 +427,10 @@ exports.searchQuestions = async (req, res) => {
 
         if (category) {
             query.category = category;
+        }
+
+        if (questionType) {
+            query.questionType = questionType;
         }
 
         const questions = await Question.find(query).sort({ createdAt: -1 });
