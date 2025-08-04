@@ -1,16 +1,30 @@
-# history and .env files
-.history/
-.history
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Environment files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.development
+.env.test
+backend/.env
 
-# Node modules
-node_modules
+# Build outputs
+dist/
+build/
 
 # Logs
-logs/
 *.log
 npm-debug.log*
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development
+.history/
